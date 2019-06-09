@@ -28,7 +28,14 @@ public class MainActivity extends AppCompatActivity {
             int position = viewHolder.getAdapterPosition();
             StreamMeta streamMeta = streamsList.get(position);
             Intent intent = new Intent(MainActivity.this, PlayerActivity.class);
-            intent.putExtra("url", "https://storage.streamarchive.net/streams/olyashaa/" + streamMeta.getUuid() + "/index-dvr.m3u8");
+            try {
+                streamMeta.setTimelinePreviews(new StreamLoader().execute(streamMeta.getUuid()).get().getTimelinePreviews());
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            intent.putExtra("stream", streamMeta);
             startActivity(intent);
         }
     };
@@ -42,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
         streamsDataGetter = new StreamsDataGetter();
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
         try {
-            new CityInfoRunner().execute(0).get();
+            new StreamsListLoader().execute(0).get();
         } catch (ExecutionException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -61,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
                 // Add whatever code is needed to append new items to the bottom of the list
                 Log.e("OFFSET", String.valueOf(totalItemsCount));
 
-                new CityInfoRunner().execute(totalItemsCount);
+                new StreamsListLoader().execute(totalItemsCount);
 
             }
         };
@@ -71,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private class CityInfoRunner extends AsyncTask<Integer, Void, List<StreamMeta>> {
+    private class StreamsListLoader extends AsyncTask<Integer, Void, List<StreamMeta>> {
 
         @Override
         protected List<StreamMeta> doInBackground(Integer... values) {
@@ -84,8 +91,6 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
                 return null;
             }
-
-
         }
 
         @Override
@@ -94,4 +99,25 @@ public class MainActivity extends AppCompatActivity {
             streamAdapter.notifyDataSetChanged();
         }
     }
+
+    private class StreamLoader extends AsyncTask<String, Void, StreamMeta> {
+        @Override
+        protected void onPostExecute(StreamMeta streamMeta) {
+            super.onPostExecute(streamMeta);
+        }
+
+        @Override
+        protected StreamMeta doInBackground(String... values) {
+            try {
+                return streamsDataGetter.getStream(values[0]);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+
+    }
+
 }

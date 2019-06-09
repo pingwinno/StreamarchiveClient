@@ -16,4 +16,11 @@ public class StreamsDataGetter {
                 new TypeReference<List<StreamMeta>>() {
                 });
     }
+
+    public StreamMeta getStream(String uuid) throws IOException {
+        List<StreamMeta> streamMetaList = mapper.readValue(new URL("https://storage.streamarchive.net/db/streams/olyashaa/" + uuid),
+                new TypeReference<List<StreamMeta>>() {
+                });
+        return streamMetaList.get(0);
+    }
 }

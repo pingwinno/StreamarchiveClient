@@ -19,7 +19,7 @@
             android:configChanges="orientation|screenSize|layoutDirection"
             android:label="@string/title_activity_player"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/AppTheme.NoActionBar">
+            android:theme="@style/FullscreenTheme">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.pingwinno.streamarchive.MainActivity" />

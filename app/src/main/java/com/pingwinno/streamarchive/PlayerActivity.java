@@ -5,7 +5,15 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.ImageView;
 
+import com.bumptech.glide.Glide;
+import com.github.rubensousa.previewseekbar.PreviewLoader;
+import com.github.rubensousa.previewseekbar.PreviewView;
+import com.github.rubensousa.previewseekbar.exoplayer.PreviewTimeBar;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.PlaybackParameters;
@@ -22,9 +30,16 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.util.Util;
 
-public class PlayerActivity extends AppCompatActivity {
+import java.util.concurrent.TimeUnit;
+
+public class PlayerActivity extends AppCompatActivity implements Toolbar.OnMenuItemClickListener,
+        PreviewView.OnPreviewChangeListener {
     PlayerView playerView;
+    PreviewTimeBar previewTimeBar;
     SimpleExoPlayer player;// = ExoPlayerFactory.newSimpleInstance(context);
+    PreviewLoader loader;
+    ImageView imageView;
+    StreamMeta streamMeta;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,10 +48,53 @@ public class PlayerActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         playerView = findViewById(R.id.video_view);
+        imageView = findViewById(R.id.imageView);
+        previewTimeBar = playerView.findViewById(R.id.exo_progress);
+        previewTimeBar.addOnPreviewChangeListener(this);
         DefaultTrackSelector trackSelector = new DefaultTrackSelector();
         player = ExoPlayerFactory.newSimpleInstance(getApplicationContext(), trackSelector);
         // getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         playerView.setPlayer(player);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+
+        streamMeta = (StreamMeta) getIntent().getSerializableExtra("stream");
+        for (Preview preview : streamMeta.getTimelinePreviews().values()) {
+            Log.e("PREVIEW", preview.getSrc());
+            Glide.with(getApplicationContext())
+                    .load("https://storage.streamarchive.net/streams/" +
+                            "olyashaa/07e29347-222d-4fcc-a926-9e91673aad67/timeline_preview/" + preview.getSrc())
+                    .preload();
+        }
+        loader = new PreviewLoader() {
+            @Override
+            public void loadPreview(long currentPosition, long max) {
+                player.setPlayWhenReady(false);
+                Log.e("TIME", String.valueOf(currentPosition));
+                Log.e("PREVIEW", streamMeta.getTimelinePreviews().floorEntry(TimeUnit.MILLISECONDS.toSeconds(currentPosition) + 10).getValue()
+                        .getSrc());
+                GlideApp.with(getApplicationContext())
+                        .load("https://storage.streamarchive.net/streams/" +
+                                "olyashaa/07e29347-222d-4fcc-a926-9e91673aad67/timeline_preview/" +
+                                streamMeta.getTimelinePreviews().floorEntry(TimeUnit.MILLISECONDS.toSeconds(currentPosition) + 10).getValue()
+                                        .getSrc())
+                        .onlyRetrieveFromCache(true)
+                        .into(imageView);
+            }
+        };
+
+
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        playerView.showController();
     }
 
     @Override
@@ -44,13 +102,16 @@ public class PlayerActivity extends AppCompatActivity {
         super.onStart();
 
         DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(getApplicationContext(),
-                Util.getUserAgent(getApplicationContext(), "yourApplicationName"));
+                Util.getUserAgent(getApplicationContext(), "StreamArchive"));
 // This is the MediaSource representing the media to be played.
         MediaSource videoSource = new HlsMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(Uri.parse(getIntent().getStringExtra("url")));
+                .createMediaSource(Uri.parse("https://storage.streamarchive.net/streams/olyashaa/" + streamMeta.getUuid() + "/index-dvr.m3u8"));
 // Prepare the player with the source.
+
         //player.seekTo(currentWindow, playbackPosition);
         player.prepare(videoSource, true, false);
+        previewTimeBar.setPreviewLoader(loader);
+        player.setPlayWhenReady(true);
         player.addListener(new Player.EventListener() {
             @Override
             public void onTimelineChanged(Timeline timeline, @Nullable Object manifest, int reason) {
@@ -69,7 +130,14 @@ public class PlayerActivity extends AppCompatActivity {
 
             @Override
             public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-
+                switch (playbackState) {
+                    case Player.STATE_READY:
+                        findViewById(R.id.loading).setVisibility(View.GONE);
+                        break;
+                    case Player.STATE_BUFFERING:
+                        findViewById(R.id.loading).setVisibility(View.VISIBLE);
+                        break;
+                }
             }
 
             @Override
@@ -99,7 +167,8 @@ public class PlayerActivity extends AppCompatActivity {
 
             @Override
             public void onSeekProcessed() {
-                // playbackPosition = player.getContentPosition();
+                player.setPlayWhenReady(true);
+                Log.e("POSITION", String.valueOf(player.getContentPosition()));
             }
         });
     }
@@ -108,5 +177,23 @@ public class PlayerActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         player.release();
+    }
+
+    @Override
+    public boolean onMenuItemClick(MenuItem menuItem) {
+        return false;
+    }
+
+    @Override
+    public void onStartPreview(PreviewView previewView, int progress) {
+    }
+
+    @Override
+    public void onStopPreview(PreviewView previewView, int progress) {
+    }
+
+    @Override
+    public void onPreview(PreviewView previewView, int progress, boolean fromUser) {
+
     }
 }

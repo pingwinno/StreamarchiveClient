@@ -2,11 +2,13 @@ package com.pingwinno.streamarchive;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.Objects;
+import java.util.TreeMap;
 
-public class StreamMeta {
+public class StreamMeta implements Serializable {
 
     @JsonProperty("_id")
     private String uuid;
@@ -15,7 +17,7 @@ public class StreamMeta {
     private String game;
     private long duration;
     private LinkedList<AnimatedPreview> animatedPreviews;
-    private LinkedHashMap<String, Preview> timelinePreviews;
+    private TreeMap<Long, Preview> timelinePreviews;
 
     public String getUuid() {
         return uuid;
@@ -68,13 +70,41 @@ public class StreamMeta {
     }
 
     @JsonProperty("timeline_preview")
-    public LinkedHashMap<String, Preview> getTimelinePreviews() {
+    public TreeMap<Long, Preview> getTimelinePreviews() {
         return timelinePreviews;
     }
 
     @JsonProperty("timeline_preview")
-    public void setTimelinePreviews(LinkedHashMap<String, Preview> timelinePreviews) {
+    public void setTimelinePreviews(TreeMap<Long, Preview> timelinePreviews) {
         this.timelinePreviews = timelinePreviews;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof StreamMeta)) return false;
+
+        StreamMeta that = (StreamMeta) o;
+
+        if (duration != that.duration) return false;
+        if (!Objects.equals(uuid, that.uuid)) return false;
+        if (!Objects.equals(date, that.date)) return false;
+        if (!Objects.equals(title, that.title)) return false;
+        if (!Objects.equals(game, that.game)) return false;
+        if (!Objects.equals(animatedPreviews, that.animatedPreviews))
+            return false;
+        return Objects.equals(timelinePreviews, that.timelinePreviews);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = uuid != null ? uuid.hashCode() : 0;
+        result = 31 * result + (date != null ? date.hashCode() : 0);
+        result = 31 * result + (title != null ? title.hashCode() : 0);
+        result = 31 * result + (game != null ? game.hashCode() : 0);
+        result = 31 * result + (int) (duration ^ (duration >>> 32));
+        result = 31 * result + (animatedPreviews != null ? animatedPreviews.hashCode() : 0);
+        result = 31 * result + (timelinePreviews != null ? timelinePreviews.hashCode() : 0);
+        return result;
+    }
 }
