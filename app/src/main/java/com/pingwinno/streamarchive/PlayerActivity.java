@@ -1,5 +1,7 @@
 package com.pingwinno.streamarchive;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -40,7 +42,7 @@ public class PlayerActivity extends AppCompatActivity implements Toolbar.OnMenuI
     PreviewLoader loader;
     ImageView imageView;
     StreamMeta streamMeta;
-
+    SharedPreferences appPref;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,6 +53,7 @@ public class PlayerActivity extends AppCompatActivity implements Toolbar.OnMenuI
         imageView = findViewById(R.id.imageView);
         previewTimeBar = playerView.findViewById(R.id.exo_progress);
         previewTimeBar.addOnPreviewChangeListener(this);
+        appPref = getSharedPreferences("SavedTime", Context.MODE_PRIVATE);
         DefaultTrackSelector trackSelector = new DefaultTrackSelector();
         player = ExoPlayerFactory.newSimpleInstance(getApplicationContext(), trackSelector);
         // getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -108,10 +111,11 @@ public class PlayerActivity extends AppCompatActivity implements Toolbar.OnMenuI
                 .createMediaSource(Uri.parse("https://storage.streamarchive.net/streams/olyashaa/" + streamMeta.getUuid() + "/index-dvr.m3u8"));
 // Prepare the player with the source.
 
-        //player.seekTo(currentWindow, playbackPosition);
+        Log.e("LoadedTime", appPref.getLong(streamMeta.getUuid(), 0) + "");
         player.prepare(videoSource, true, false);
         previewTimeBar.setPreviewLoader(loader);
         player.setPlayWhenReady(true);
+
         player.addListener(new Player.EventListener() {
             @Override
             public void onTimelineChanged(Timeline timeline, @Nullable Object manifest, int reason) {
@@ -133,6 +137,7 @@ public class PlayerActivity extends AppCompatActivity implements Toolbar.OnMenuI
                 switch (playbackState) {
                     case Player.STATE_READY:
                         findViewById(R.id.loading).setVisibility(View.GONE);
+
                         break;
                     case Player.STATE_BUFFERING:
                         findViewById(R.id.loading).setVisibility(View.VISIBLE);
@@ -171,6 +176,17 @@ public class PlayerActivity extends AppCompatActivity implements Toolbar.OnMenuI
                 Log.e("POSITION", String.valueOf(player.getContentPosition()));
             }
         });
+        player.seekTo(appPref.getLong(streamMeta.getUuid(), 0));
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Log.e("SavedTime", player.getContentPosition() + "");
+        SharedPreferences.Editor editor = appPref.edit();
+        editor.putLong(streamMeta.getUuid(), player.getContentPosition());
+        editor.apply();
+        editor.commit();
     }
 
     @Override
